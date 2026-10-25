@@ -1,0 +1,9 @@
+{
+  "name": "MotoNAV TEST",
+  "short_name": "MotoNAV",
+  "start_url": "./TEST.html",
+  "display": "standalone",
+  "background_color": "#070e1c",
+  "theme_color": "#070e1c",
+  "description": "Prototipo MotoNAV con stile glow blu-verde"
+}
