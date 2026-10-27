@@ -117,18 +117,29 @@ el('offlineEnable').onclick=async()=>{
   localLayer=protomapsL.leafletLayer({url:localObjectUrl,flavor:'light',lang:'it',attribution:'© OpenStreetMap contributors'});
   report('⏳ Collegamento livello alla mappa…');
   await new Promise(resolve=>setTimeout(resolve,80));
+  let firstTile=false;
+  localLayer.on('tileload',()=>{
+    if(firstTile)return;
+    firstTile=true;
+    report('🗺️ Primo riquadro locale disegnato. Verifica strade e nomi.');
+    if(map.hasLayer(window.motoNavOnlineTiles))map.removeLayer(window.motoNavOnlineTiles);
+    $('mapState').textContent='MAPPA LOMBARDIA OFFLINE';
+  });
+  localLayer.on('tileerror',event=>{
+    const detail=event?.error?.message||event?.error?.toString?.()||'Errore lettura/rendering tile';
+    report('⚠ PMTiles: '+detail);
+  });
   localLayer.addTo(map);
   localStorage.setItem('motonav-lombardia-enabled','1');
-  report('🗺️ Livello locale collegato. Apertura anteprima…');
+  report('⏳ Livello collegato; attendo il primo riquadro locale (max 12 secondi)…');
   $('mapState').textContent='MAPPA LOMBARDIA · TEST';
+  setTimeout(()=>map.invalidateSize(),120);
   setTimeout(()=>{
-    try{
-      report('⏳ Disattivazione sfondo online…');
-      if(map.hasLayer(window.motoNavOnlineTiles))map.removeLayer(window.motoNavOnlineTiles);
-      report('🗺️ Mappa locale selezionata. Controlla strade e dettagli nella mappa.');
-      map.invalidateSize();
-    }catch(err){report('⚠ Cambio sfondo: '+err.message)}
-  },600);
+    if(!firstTile){
+      report('⚠ Nessun riquadro PMTiles disegnato entro 12 secondi. Mantengo la mappa online per sicurezza; il file è conservato.');
+      if(!map.hasLayer(window.motoNavOnlineTiles))window.motoNavOnlineTiles.addTo(map);
+    }
+  },12000);
  }catch(e){
   if(localLayer){map.removeLayer(localLayer);localLayer=null}
   if(localObjectUrl){URL.revokeObjectURL(localObjectUrl);localObjectUrl=null}
