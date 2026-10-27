@@ -111,12 +111,18 @@ el('offlineEnable').onclick=async()=>{
   if(localObjectUrl){URL.revokeObjectURL(localObjectUrl);localObjectUrl=null}
   localObjectUrl=URL.createObjectURL(record.blob);
   report('⏳ Avvio rendering PMTiles locale…');
+  document.body.classList.add('preview-open');
+  $('previewToggle').textContent='Nascondi mappa ▴';
+  report('⏳ Creazione livello cartografico…');
   localLayer=protomapsL.leafletLayer({url:localObjectUrl,flavor:'light',lang:'it',attribution:'© OpenStreetMap contributors'});
+  report('⏳ Collegamento livello alla mappa…');
+  await new Promise(resolve=>setTimeout(resolve,80));
   localLayer.addTo(map);
+  report('⏳ Livello aggiunto; disattivazione cartografia online…');
   map.removeLayer(tiles);
   $('mapState').textContent='MAPPA LOMBARDIA OFFLINE';
   report('🗺️ Mappa Lombardia attiva (TEST). Controlla la visualizzazione sulla mappa.');
-  map.invalidateSize();
+  setTimeout(()=>map.invalidateSize(),150);
  }catch(e){
   if(localLayer){map.removeLayer(localLayer);localLayer=null}
   if(localObjectUrl){URL.revokeObjectURL(localObjectUrl);localObjectUrl=null}
