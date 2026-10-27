@@ -93,7 +93,7 @@ async function deleteArchive(){const db=await openDb();return new Promise((resol
 const fmt=n=>(n/1048576).toLocaleString('it-IT',{maximumFractionDigits:1})+' MB';
 function setBusy(v){busy=v;el('offlineDownload').disabled=v;el('offlineImport').disabled=v;el('offlineDelete').disabled=v;el('offlineCancel').disabled=!v}
 async function refresh(){try{const x=await readArchive();status.textContent=x?'💾 Lombardia: '+fmt(x.blob.size)+' salvati. Premi Attiva mappa Lombardia.':'Nessun archivio Lombardia salvato.';summary.textContent=localLayer?'🗺️ Mappa locale ATTIVA':x?'💾 Archivio '+fmt(x.blob.size)+' disponibile':'⏳ Importa il file Lombardia'}catch(e){status.textContent='Archivio non accessibile: '+e.message}}
-function disableLocal(){if(localLayer){map.removeLayer(localLayer);localLayer=null}if(localObjectUrl){URL.revokeObjectURL(localObjectUrl);localObjectUrl=null}if(!map.hasLayer(tiles))tiles.addTo(map);$('mapState').textContent='MAPPA ONLINE';refresh()}
+function disableLocal(){localStorage.setItem('motonav-lombardia-enabled','0');if(localLayer){map.removeLayer(localLayer);localLayer=null}if(localObjectUrl){URL.revokeObjectURL(localObjectUrl);localObjectUrl=null}if(!map.hasLayer(tiles))tiles.addTo(map);$('mapState').textContent='MAPPA ONLINE';refresh()}
 el('offlineDisable').onclick=disableLocal;
 el('offlineEnable').onclick=async()=>{
  document.getElementById('offlineMaps').open=true;
@@ -118,6 +118,7 @@ el('offlineEnable').onclick=async()=>{
   report('⏳ Collegamento livello alla mappa…');
   await new Promise(resolve=>setTimeout(resolve,80));
   localLayer.addTo(map);
+  localStorage.setItem('motonav-lombardia-enabled','1');
   report('🗺️ Livello locale collegato. Apertura anteprima…');
   $('mapState').textContent='MAPPA LOMBARDIA · TEST';
   setTimeout(()=>{
@@ -133,6 +134,7 @@ el('offlineEnable').onclick=async()=>{
   if(localObjectUrl){URL.revokeObjectURL(localObjectUrl);localObjectUrl=null}
   if(!map.hasLayer(tiles))tiles.addTo(map);
   $('mapState').textContent='MAPPA ONLINE';
+  localStorage.setItem('motonav-lombardia-enabled','0');
   report('⚠ '+e.message);
   alert('Moto-NAV Lombardia: '+e.message);
  }finally{setBusy(false)}
@@ -145,5 +147,9 @@ el('offlineDownload').onclick=async()=>{if(busy)return;const url=el('offlineUrl'
 controller=new AbortController();setBusy(true);bar.hidden=false;bar.removeAttribute('value');status.textContent='Connessione al server cartografico…';
 try{const res=await fetch(parsed.href,{signal:controller.signal});if(!res.ok||!res.body)throw Error('Server non disponibile (HTTP '+res.status+')');const total=Number(res.headers.get('content-length'))||0;const chunks=[];let received=0;const reader=res.body.getReader();while(true){const {done,value}=await reader.read();if(done)break;chunks.push(value);received+=value.byteLength;if(total){bar.value=Math.min(100,received/total*100);status.textContent='Download '+Math.round(received/total*100)+'% · '+fmt(received)+' / '+fmt(total)}else{status.textContent='Scaricati '+fmt(received)+' · dimensione totale sconosciuta'}}const blob=new Blob(chunks,{type:'application/octet-stream'});await storeBlob(blob,parsed.pathname.split('/').pop())}catch(e){status.textContent=e.name==='AbortError'?'Download annullato.':'⚠ Download non riuscito: '+e.message+' (verifica anche i permessi CORS del server)'}finally{controller=null;setBusy(false);bar.hidden=true}};
 refresh();
+if(localStorage.getItem('motonav-lombardia-enabled')==='1'){
+ status.textContent='⏳ Ripristino automatico mappa Lombardia…';
+ setTimeout(()=>el('offlineEnable').click(),1200);
+}
 })();
 </script></body></html>
