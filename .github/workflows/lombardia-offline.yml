@@ -1,0 +1,39 @@
+name: Prepara mappa offline Lombardia
+on:
+  workflow_dispatch:
+    inputs:
+      source_url:
+        description: "Archivio Protomaps ufficiale (PMTiles)"
+        required: true
+        default: "https://build.protomaps.com/20261011.pmtiles"
+      max_zoom:
+        description: "Livello massimo di dettaglio (12 prova, 14 strade)"
+        required: true
+        default: "12"
+        type: choice
+        options: ["12", "13", "14"]
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Installa pmtiles CLI
+        run: |
+          curl -fL --retry 3 https://github.com/protomaps/go-pmtiles/releases/latest/download/go-pmtiles_Linux_x86_64.tar.gz -o /tmp/pmtiles.tar.gz
+          tar -xzf /tmp/pmtiles.tar.gz -C /tmp
+          sudo install -m 755 /tmp/pmtiles /usr/local/bin/pmtiles
+          pmtiles --help
+      - name: Estrai Lombardia
+        run: |
+          mkdir -p dist
+          pmtiles extract "${{ inputs.source_url }}" dist/lombardia.pmtiles --bbox=8.45,44.65,11.55,46.75 --maxzoom="${{ inputs.max_zoom }}"
+          pmtiles verify dist/lombardia.pmtiles
+          ls -lh dist/lombardia.pmtiles
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lombardia-pmtiles-z${{ inputs.max_zoom }}
+          path: dist/lombardia.pmtiles
+          retention-days: 7
