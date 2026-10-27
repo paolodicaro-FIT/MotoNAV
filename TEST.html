@@ -118,12 +118,12 @@ el('offlineEnable').onclick=async()=>{
   report('⏳ Collegamento livello alla mappa…');
   await new Promise(resolve=>setTimeout(resolve,80));
   let firstTile=false;
+  let tileCount=0;
   localLayer.on('tileload',()=>{
-    if(firstTile)return;
+    tileCount++;
     firstTile=true;
-    report('🗺️ Primo riquadro locale disegnato. Verifica strade e nomi.');
-    if(map.hasLayer(window.motoNavOnlineTiles))map.removeLayer(window.motoNavOnlineTiles);
-    $('mapState').textContent='MAPPA LOMBARDIA OFFLINE';
+    report('🔎 PMTiles: '+tileCount+' riquadri caricati; presenza delle strade NON verificata.');
+    $('mapState').textContent='LOMBARDIA · RENDERING IN VERIFICA';
   });
   localLayer.on('tileerror',event=>{
     const detail=event?.error?.message||event?.error?.toString?.()||'Errore lettura/rendering tile';
@@ -139,6 +139,7 @@ el('offlineEnable').onclick=async()=>{
       report('⚠ Nessun riquadro PMTiles disegnato entro 12 secondi. Mantengo la mappa online per sicurezza; il file è conservato.');
       if(!map.hasLayer(window.motoNavOnlineTiles))window.motoNavOnlineTiles.addTo(map);
     }
+    else report('🔎 PMTiles: '+tileCount+' riquadri caricati, ma la cartografia non è ancora verificata. Mappa online mantenuta come riferimento.');
   },12000);
  }catch(e){
   if(localLayer){map.removeLayer(localLayer);localLayer=null}
