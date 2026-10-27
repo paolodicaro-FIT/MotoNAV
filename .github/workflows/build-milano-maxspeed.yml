@@ -1,0 +1,36 @@
+name: Build Milano OSM maxspeed
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/build-milano-maxspeed.yml'
+permissions:
+  contents: write
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install parser
+        run: python -m pip install osmium
+      - name: Download OSM north-west Italy
+        run: |
+          curl --fail --location --retry 3 --connect-timeout 30 --max-time 900 -o /tmp/nord-ovest.osm.pbf https://download.geofabrik.de/europe/italy/nord-ovest-latest.osm.pbf
+      - name: Export Milano limits
+        run: |
+          mkdir -p data
+          python tools/export-maxspeed.py /tmp/nord-ovest.osm.pbf --bbox 9.16,45.44,9.24,45.51 --out data/maxspeed-milano.geojson
+          ls -lh data/maxspeed-milano.geojson
+      - name: Commit dataset
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/maxspeed-milano.geojson
+          if ! git diff --cached --quiet; then
+            git commit -m 'Update Milano OSM maxspeed data'
+            git push
+          fi
