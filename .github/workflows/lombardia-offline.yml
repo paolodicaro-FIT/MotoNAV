@@ -5,7 +5,7 @@ on:
       source_url:
         description: "Archivio Protomaps ufficiale (PMTiles)"
         required: true
-        default: "https://build.protomaps.com/20261011.pmtiles"
+        default: "https://build.protomaps.com/20261012.pmtiles"
       max_zoom:
         description: "Livello massimo di dettaglio (12 prova, 14 strade)"
         required: true
@@ -29,6 +29,11 @@ jobs:
           go install github.com/protomaps/go-pmtiles@v1.31.2
           sudo install -m 755 "$(go env GOPATH)/bin/go-pmtiles" /usr/local/bin/pmtiles
           pmtiles --help
+      - name: Controlla disponibilità archivio
+        run: |
+          echo "Controllo sorgente: ${{ inputs.source_url }}"
+          curl -fLsS -r 0-6 --max-time 30 -o /tmp/pmtiles-header "${{ inputs.source_url }}"
+          test "$(head -c 7 /tmp/pmtiles-header)" = "PMTiles"
       - name: Estrai Lombardia
         run: |
           mkdir -p dist
