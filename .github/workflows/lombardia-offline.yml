@@ -1,53 +1,49 @@
 name: Prepara mappa offline Lombardia
 on:
   workflow_dispatch:
-    inputs:
-      source_url:
-        description: "Archivio PMTiles pubblico (modificabile; non garantito)"
-        required: true
-        default: "https://tiles.jasontally.com/basemap.pmtiles"
-      max_zoom:
-        description: "Livello massimo di dettaglio (12 prova, 14 strade)"
-        required: true
-        default: "12"
-        type: choice
-        options: ["12", "13", "14"]
 jobs:
-  extract:
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - name: Configura Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-      - name: Installa pmtiles CLI
+      - name: Installa Osmium
         run: |
-          go install github.com/protomaps/go-pmtiles@v1.31.2
-          sudo install -m 755 "$(go env GOPATH)/bin/go-pmtiles" /usr/local/bin/pmtiles
-          pmtiles --help
-      - name: Controlla disponibilità archivio
+          sudo apt-get update
+          sudo apt-get install -y osmium-tool
+      - name: Scarica dati OSM Nord-Ovest da Geofabrik
         run: |
-          echo "Controllo sorgente: ${{ inputs.source_url }}"
-          curl -fLsS -H "Range: bytes=0-6" --max-time 45 -o /tmp/pmtiles-header "${{ inputs.source_url }}"
-          test "$(head -c 7 /tmp/pmtiles-header)" = "PMTiles" || { echo "La sorgente non ha restituito un header PMTiles valido"; exit 1; }
-      - name: Scarica sorgente locale
+          mkdir -p data
+          curl --fail --location --retry 3 --retry-all-errors \
+            --connect-timeout 30 --output data/nord-ovest.osm.pbf \
+            https://download.geofabrik.de/europe/italy/nord-ovest-latest.osm.pbf
+          osmium fileinfo data/nord-ovest.osm.pbf
+      - name: Ritaglia Lombardia e area limitrofa
+        run: |
+          osmium extract --bbox 8.45,44.65,11.55,46.75 \
+            --strategy complete_ways \
+            --output data/lombardia.osm.pbf data/nord-ovest.osm.pbf
+          osmium fileinfo data/lombardia.osm.pbf
+          rm data/nord-ovest.osm.pbf
+      - name: Genera PMTiles con Planetiler
         run: |
           mkdir -p dist
-          curl --fail --location --retry 4 --retry-all-errors --connect-timeout 30 --max-time 1800 \
-            --output /tmp/source.pmtiles "${{ inputs.source_url }}"
-          test "$(head -c 7 /tmp/source.pmtiles)" = "PMTiles"
-          ls -lh /tmp/source.pmtiles
-      - name: Estrai Lombardia
-        run: |
-          pmtiles extract /tmp/source.pmtiles dist/lombardia.pmtiles --bbox=8.45,44.65,11.55,46.75 --maxzoom="${{ inputs.max_zoom }}"
-          pmtiles verify dist/lombardia.pmtiles
+          docker run --rm \
+            -e JAVA_TOOL_OPTIONS="-Xmx5g" \
+            -v "$PWD/data:/data/input:ro" \
+            -v "$PWD/dist:/data/output" \
+            ghcr.io/onthegomap/planetiler:latest \
+            --osm-path=/data/input/lombardia.osm.pbf \
+            --output=/data/output/lombardia.pmtiles \
+            --download \
+            --force
+          test -s dist/lombardia.pmtiles
           ls -lh dist/lombardia.pmtiles
       - uses: actions/upload-artifact@v4
         with:
-          name: lombardia-pmtiles-z${{ inputs.max_zoom }}
+          name: lombardia-pmtiles
           path: dist/lombardia.pmtiles
           retention-days: 7
+          if-no-files-found: error
