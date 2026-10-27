@@ -3,9 +3,9 @@ on:
   workflow_dispatch:
     inputs:
       source_url:
-        description: "Archivio Protomaps ufficiale (PMTiles)"
+        description: "Archivio PMTiles Protomaps (demo stabile, modificabile)"
         required: true
-        default: "https://build.protomaps.com/20261012.pmtiles"
+        default: "https://demo-bucket.protomaps.com/v4.pmtiles"
       max_zoom:
         description: "Livello massimo di dettaglio (12 prova, 14 strade)"
         required: true
@@ -32,8 +32,8 @@ jobs:
       - name: Controlla disponibilità archivio
         run: |
           echo "Controllo sorgente: ${{ inputs.source_url }}"
-          curl -fLsS -r 0-6 --max-time 30 -o /tmp/pmtiles-header "${{ inputs.source_url }}"
-          test "$(head -c 7 /tmp/pmtiles-header)" = "PMTiles"
+          curl -fLsS -H "Range: bytes=0-6" --max-time 45 -o /tmp/pmtiles-header "${{ inputs.source_url }}"
+          test "$(head -c 7 /tmp/pmtiles-header)" = "PMTiles" || { echo "La sorgente non ha restituito un header PMTiles valido"; exit 1; }
       - name: Estrai Lombardia
         run: |
           mkdir -p dist
