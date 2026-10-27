@@ -1,5 +1,5 @@
-/* MotoNAV TEST offline shell v03. Keep INDEX network-first behavior. */
-const SHELL='motonav-shell-v04';
+/* MotoNAV offline shell v05: network-first HTML, offline fallback; do not alter IndexedDB maps. */
+const SHELL='motonav-shell-v05';
 const SHELL_FILES=['./','./index.html','./TEST.html','./manifest.webmanifest','./manifest-test.webmanifest','./icon-32.png','./icon-16.png','./icon-180.png','./icon-192.png','./icon-512.png','./icon-maskable-512.png'];
 const LIBS=['https://unpkg.com/protomaps-leaflet@4.0.1/dist/protomaps-leaflet.js','https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css','https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js','https://cdn.jsdelivr.net/npm/@tomickigrzegorz/leaflet-rotate@0.3.0/dist/leaflet-rotate.umd.min.js'];
 self.addEventListener('install',event=>{event.waitUntil((async()=>{const cache=await caches.open(SHELL);await Promise.allSettled(SHELL_FILES.map(async path=>{const response=await fetch(new Request(path,{cache:'reload'}));if(response.ok)await cache.put(path,response)}));await Promise.allSettled(LIBS.map(async url=>{const response=await fetch(url,{mode:'cors'});if(response.ok)await cache.put(url,response)}));await self.skipWaiting()})())});
