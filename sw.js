@@ -1,7 +1,7 @@
 /* MotoNAV TEST offline shell v03. Keep INDEX network-first behavior. */
-const SHELL='motonav-shell-v03';
+const SHELL='motonav-shell-v04';
 const SHELL_FILES=['./','./index.html','./TEST.html','./manifest.webmanifest','./manifest-test.webmanifest','./icon-32.png','./icon-16.png','./icon-180.png','./icon-192.png','./icon-512.png','./icon-maskable-512.png'];
-const LIBS=['https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css','https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js','https://cdn.jsdelivr.net/npm/@tomickigrzegorz/leaflet-rotate@0.3.0/dist/leaflet-rotate.umd.min.js'];
+const LIBS=['https://unpkg.com/protomaps-leaflet@4.0.1/dist/protomaps-leaflet.js','https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css','https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js','https://cdn.jsdelivr.net/npm/@tomickigrzegorz/leaflet-rotate@0.3.0/dist/leaflet-rotate.umd.min.js'];
 self.addEventListener('install',event=>{event.waitUntil((async()=>{const cache=await caches.open(SHELL);await Promise.allSettled(SHELL_FILES.map(async path=>{const response=await fetch(new Request(path,{cache:'reload'}));if(response.ok)await cache.put(path,response)}));await Promise.allSettled(LIBS.map(async url=>{const response=await fetch(url,{mode:'cors'});if(response.ok)await cache.put(url,response)}));await self.skipWaiting()})())});
 self.addEventListener('activate',event=>{event.waitUntil((async()=>{const keys=await caches.keys();await Promise.all(keys.filter(k=>k.startsWith('motonav-')&&k!==SHELL).map(k=>caches.delete(k)));await self.clients.claim()})())});
 self.addEventListener('fetch',event=>{const req=event.request;if(req.method!=='GET')return;const url=new URL(req.url);const same=url.origin===self.location.origin;const lib=LIBS.includes(url.href);if(!same&&!lib)return;
