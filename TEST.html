@@ -84,7 +84,7 @@ $('route').onclick=async()=>{const parseCoord=value=>{const m=value.trim().match
 /* Offline map archive storage and experimental Leaflet vector renderer - TEST only. */
 (function(){
 const el=id=>document.getElementById(id),status=el('offlineStatus'),bar=el('offlineProgress'),summary=el('offlineSummary');
-let controller=null,busy=false,localLayer=null,localObjectUrl=null;
+let controller=null,busy=false,localLayer=null,localObjectUrl=null,activationId=0;
 const DB='motonav-regional-archives-v1',STORE='regions';
 function openDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB,1);req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains(STORE))req.result.createObjectStore(STORE)};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
 async function readArchive(){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readonly'),req=tx.objectStore(STORE).get('lombardia');req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);tx.oncomplete=()=>db.close()})}
@@ -93,16 +93,33 @@ async function deleteArchive(){const db=await openDb();return new Promise((resol
 const fmt=n=>(n/1048576).toLocaleString('it-IT',{maximumFractionDigits:1})+' MB';
 function setBusy(v){busy=v;el('offlineDownload').disabled=v;el('offlineImport').disabled=v;el('offlineDelete').disabled=v;el('offlineCancel').disabled=!v}
 async function refresh(){try{const x=await readArchive();status.textContent=x?'💾 Lombardia: '+fmt(x.blob.size)+' salvati. Premi Attiva mappa Lombardia.':'Nessun archivio Lombardia salvato.';summary.textContent=localLayer?'🗺️ Mappa locale ATTIVA':x?'💾 Archivio '+fmt(x.blob.size)+' disponibile':'⏳ Importa il file Lombardia'}catch(e){status.textContent='Archivio non accessibile: '+e.message}}
-function disableLocal(){localStorage.setItem('motonav-lombardia-enabled','0');if(localLayer){map.removeLayer(localLayer);localLayer=null}if(localObjectUrl){URL.revokeObjectURL(localObjectUrl);localObjectUrl=null}if(!map.hasLayer(window.motoNavOnlineTiles))window.motoNavOnlineTiles.addTo(map);$('mapState').textContent='MAPPA ONLINE';refresh()}
+function disableLocal(){
+ activationId++;
+ localStorage.setItem('motonav-lombardia-enabled','0');
+ try{
+  if(localLayer){localLayer.off();map.removeLayer(localLayer);localLayer=null}
+  if(localObjectUrl){URL.revokeObjectURL(localObjectUrl);localObjectUrl=null}
+  const online=window.motoNavOnlineTiles;
+  if(!online)throw Error('Livello online non disponibile');
+  if(!map.hasLayer(online))online.addTo(map);
+  if(online.bringToFront)online.bringToFront();
+  $('mapState').textContent='MAPPA ONLINE';
+  status.textContent='🌐 Mappa online ripristinata. Attendi il caricamento delle strade.';
+  summary.textContent='🌐 Mappa online selezionata';
+  setTimeout(()=>map.invalidateSize(),100);
+ }catch(e){status.textContent='⚠ Ripristino online: '+e.message}
+}
 el('offlineDisable').onclick=disableLocal;
 el('offlineEnable').onclick=async()=>{
  if(busy){status.textContent='Operazione precedente ancora in corso.';return}
  setBusy(true);
+ const thisActivation=++activationId;
  const report=msg=>{status.textContent=msg;summary.textContent=msg};
  const timeout=(p,ms,msg)=>Promise.race([p,new Promise((_,reject)=>setTimeout(()=>reject(new Error(msg)),ms))]);
  try{
   report('⏳ Lettura archivio dal dispositivo (può richiedere alcuni secondi)…');
   const record=await timeout(readArchive(),20000,'Lettura archivio bloccata oltre 20 secondi: prova a riaprire TEST senza cancellare i dati del sito.');
+  if(thisActivation!==activationId)return;
   if(!record?.blob)throw Error('Importa prima il file lombardia.pmtiles.');
   report('⏳ Archivio '+fmt(record.blob.size)+' letto. Controllo motore cartografico…');
   if(!window.protomapsL?.leafletLayer)throw Error('Motore Protomaps non caricato. Verificare la libreria esterna.');
@@ -118,12 +135,14 @@ el('offlineEnable').onclick=async()=>{
   let firstTile=false;
   let tileCount=0;
   localLayer.on('tileload',()=>{
+    if(thisActivation!==activationId)return;
     tileCount++;
     firstTile=true;
     report('🔎 PMTiles: '+tileCount+' riquadri caricati; presenza delle strade NON verificata.');
     $('mapState').textContent='LOMBARDIA · RENDERING IN VERIFICA';
   });
   localLayer.on('tileerror',event=>{
+    if(thisActivation!==activationId)return;
     const detail=event?.error?.message||event?.error?.toString?.()||'Errore lettura/rendering tile';
     report('⚠ PMTiles: '+detail);
   });
@@ -133,6 +152,7 @@ el('offlineEnable').onclick=async()=>{
   $('mapState').textContent='MAPPA LOMBARDIA · TEST';
   setTimeout(()=>map.invalidateSize(),120);
   setTimeout(()=>{
+    if(thisActivation!==activationId)return;
     if(!firstTile){
       report('⚠ Nessun riquadro PMTiles disegnato entro 12 secondi. Mantengo la mappa online per sicurezza; il file è conservato.');
       if(!map.hasLayer(window.motoNavOnlineTiles))window.motoNavOnlineTiles.addTo(map);
@@ -140,6 +160,7 @@ el('offlineEnable').onclick=async()=>{
     else report('🔎 PMTiles: '+tileCount+' riquadri caricati, ma la cartografia non è ancora verificata. Mappa online mantenuta come riferimento.');
   },12000);
  }catch(e){
+  if(thisActivation!==activationId)return;
   if(localLayer){map.removeLayer(localLayer);localLayer=null}
   if(localObjectUrl){URL.revokeObjectURL(localObjectUrl);localObjectUrl=null}
   if(!map.hasLayer(window.motoNavOnlineTiles))window.motoNavOnlineTiles.addTo(map);
