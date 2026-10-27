@@ -114,7 +114,7 @@ el('offlineEnable').onclick=async()=>{
   document.body.classList.add('preview-open');
   $('previewToggle').textContent='Nascondi mappa ▴';
   report('⏳ Creazione livello cartografico…');
-  localLayer=protomapsL.leafletLayer({url:localObjectUrl,flavor:'light',lang:'it',attribution:'© OpenStreetMap contributors'});
+  localLayer=protomapsL.leafletLayer({url:localObjectUrl,flavor:'light',lang:'it',attribution:'© OpenStreetMap contributors',keepBuffer:8,updateWhenIdle:false,updateWhenZooming:true});
   report('⏳ Collegamento livello alla mappa…');
   await new Promise(resolve=>setTimeout(resolve,80));
   let firstTile=false;
