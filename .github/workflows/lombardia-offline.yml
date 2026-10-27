@@ -34,10 +34,16 @@ jobs:
           echo "Controllo sorgente: ${{ inputs.source_url }}"
           curl -fLsS -H "Range: bytes=0-6" --max-time 45 -o /tmp/pmtiles-header "${{ inputs.source_url }}"
           test "$(head -c 7 /tmp/pmtiles-header)" = "PMTiles" || { echo "La sorgente non ha restituito un header PMTiles valido"; exit 1; }
-      - name: Estrai Lombardia
+      - name: Scarica sorgente locale
         run: |
           mkdir -p dist
-          pmtiles extract "${{ inputs.source_url }}" dist/lombardia.pmtiles --bbox=8.45,44.65,11.55,46.75 --maxzoom="${{ inputs.max_zoom }}"
+          curl --fail --location --retry 4 --retry-all-errors --connect-timeout 30 --max-time 1800 \
+            --output /tmp/source.pmtiles "${{ inputs.source_url }}"
+          test "$(head -c 7 /tmp/source.pmtiles)" = "PMTiles"
+          ls -lh /tmp/source.pmtiles
+      - name: Estrai Lombardia
+        run: |
+          pmtiles extract /tmp/source.pmtiles dist/lombardia.pmtiles --bbox=8.45,44.65,11.55,46.75 --maxzoom="${{ inputs.max_zoom }}"
           pmtiles verify dist/lombardia.pmtiles
           ls -lh dist/lombardia.pmtiles
       - uses: actions/upload-artifact@v4
