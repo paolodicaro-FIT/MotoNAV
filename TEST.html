@@ -118,11 +118,16 @@ el('offlineEnable').onclick=async()=>{
   report('⏳ Collegamento livello alla mappa…');
   await new Promise(resolve=>setTimeout(resolve,80));
   localLayer.addTo(map);
-  report('⏳ Livello aggiunto; disattivazione cartografia online…');
-  map.removeLayer(tiles);
-  $('mapState').textContent='MAPPA LOMBARDIA OFFLINE';
-  report('🗺️ Mappa Lombardia attiva (TEST). Controlla la visualizzazione sulla mappa.');
-  setTimeout(()=>map.invalidateSize(),150);
+  report('🗺️ Livello locale collegato. Apertura anteprima…');
+  $('mapState').textContent='MAPPA LOMBARDIA · TEST';
+  setTimeout(()=>{
+    try{
+      report('⏳ Disattivazione sfondo online…');
+      if(map.hasLayer(tiles))map.removeLayer(tiles);
+      report('🗺️ Mappa locale selezionata. Controlla strade e dettagli nella mappa.');
+      map.invalidateSize();
+    }catch(err){report('⚠ Cambio sfondo: '+err.message)}
+  },600);
  }catch(e){
   if(localLayer){map.removeLayer(localLayer);localLayer=null}
   if(localObjectUrl){URL.revokeObjectURL(localObjectUrl);localObjectUrl=null}
