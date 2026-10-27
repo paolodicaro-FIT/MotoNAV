@@ -3,9 +3,9 @@ on:
   workflow_dispatch:
     inputs:
       source_url:
-        description: "Archivio PMTiles Protomaps (demo stabile, modificabile)"
+        description: "Archivio PMTiles pubblico (modificabile; non garantito)"
         required: true
-        default: "https://demo-bucket.protomaps.com/v4.pmtiles"
+        default: "https://tiles.jasontally.com/basemap.pmtiles"
       max_zoom:
         description: "Livello massimo di dettaglio (12 prova, 14 strade)"
         required: true
